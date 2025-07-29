@@ -3,11 +3,29 @@
 #include "mpu6050_dmp.h"
 #include "py/stream.h"
 
-static mp_obj_t imu_init() {
-    if (!imu_dmp_init()) mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("MPU6050 init failed"));
+static mp_obj_t imu_init(size_t n_args, const mp_obj_t *args, mp_map_t *kwargs) {
+    enum { ARG_i2c, ARG_sda, ARG_scl };
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_i2c, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
+        { MP_QSTR_sda, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 20} },
+        { MP_QSTR_scl, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 21} },
+    };
+
+    mp_arg_val_t parsed_args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, args, kwargs, MP_ARRAY_SIZE(allowed_args), allowed_args, parsed_args);
+
+    uint8_t i2c_id = parsed_args[ARG_i2c].u_int;
+    uint sda_pin = parsed_args[ARG_sda].u_int;
+    uint scl_pin = parsed_args[ARG_scl].u_int;
+
+    if (!imu_dmp_init(i2c_id, sda_pin, scl_pin)) {
+        mp_raise_msg(&mp_type_RuntimeError, MP_ERROR_TEXT("MPU6050 init failed"));
+    }
+
     return mp_const_none;
 }
-static MP_DEFINE_CONST_FUN_OBJ_0(imu_init_obj, imu_init);
+static MP_DEFINE_CONST_FUN_OBJ_KW(imu_init_obj, 0, imu_init);
+
 
 static mp_obj_t imu_get_angles() {
     float yaw, pitch, roll;
