@@ -4,8 +4,9 @@ add_compile_options(
     -Wno-unused-but-set-variable
 )
 
-# Replace this with your actual absolute path
-set(PICO_SDK_PATH /home/dirago/MPU_DMP_Test/micropython/lib/pico-sdk)
+# Links SDK PATH to micropython folder
+set(PICO_SDK_PATH ${MICROPY_DIR}/lib/pico-sdk)
+message(STATUS "Using Pico SDK from: ${PICO_SDK_PATH}")
 
 # Create an INTERFACE library for our C module.
 add_library(usermod_imu INTERFACE)
