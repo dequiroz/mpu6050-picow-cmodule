@@ -39,13 +39,17 @@ THE SOFTWARE.
 
 #include "MPU6050.h"
 
+extern "C" {
+    #include "py/stream.h"  // <-- needed for mp_printf and mp_plat_print
+    #include "py/misc.h"    // <-- needed for m_malloc y m_free
+}
 
 #ifndef BUFFER_LENGTH
 // band-aid fix for platforms without Wire-defined BUFFER_LENGTH (removed from some official implementations)
 #define BUFFER_LENGTH 32
 #endif
 
-static int addr = 0x68;
+//static int addr = 0x68;
 
 int16_t map(int16_t x, int16_t in_min, int16_t in_max, int16_t out_min, int16_t out_max) {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
@@ -3095,9 +3099,9 @@ bool MPU6050::writeMemoryBlock(const uint8_t *data, uint16_t dataSize, uint8_t b
     uint8_t *verifyBuffer=0;
     uint8_t *progBuffer=0;
     uint16_t i;
-    uint8_t j;
-    if (verify) verifyBuffer = (uint8_t *)malloc(MPU6050_DMP_MEMORY_CHUNK_SIZE);
-    if (useProgMem) progBuffer = (uint8_t *)malloc(MPU6050_DMP_MEMORY_CHUNK_SIZE);
+    //uint8_t j;
+    if (verify) verifyBuffer = (uint8_t *)m_malloc(MPU6050_DMP_MEMORY_CHUNK_SIZE);
+    if (useProgMem) progBuffer = (uint8_t *)m_malloc(MPU6050_DMP_MEMORY_CHUNK_SIZE);
     for (i = 0; i < dataSize;) {
         // determine correct chunk size according to bank position and data size
         chunkSize = MPU6050_DMP_MEMORY_CHUNK_SIZE;
@@ -3141,8 +3145,8 @@ bool MPU6050::writeMemoryBlock(const uint8_t *data, uint16_t dataSize, uint8_t b
                     Serial.print(verifyBuffer[i + j], HEX);
                 }
                 Serial.print("\n");*/
-                free(verifyBuffer);
-                if (useProgMem) free(progBuffer);
+                m_free(verifyBuffer);
+                if (useProgMem) m_free(progBuffer);
                 return false; // uh oh.
             }
         }
@@ -3160,8 +3164,8 @@ bool MPU6050::writeMemoryBlock(const uint8_t *data, uint16_t dataSize, uint8_t b
             setMemoryStartAddress(address);
         }
     }
-    if (verify) free(verifyBuffer);
-    if (useProgMem) free(progBuffer);
+    if (verify) m_free(verifyBuffer);
+    if (useProgMem) m_free(progBuffer);
     return true;
 }
 bool MPU6050::writeProgMemoryBlock(const uint8_t *data, uint16_t dataSize, uint8_t bank, uint8_t address, bool verify) {
@@ -3170,14 +3174,16 @@ bool MPU6050::writeProgMemoryBlock(const uint8_t *data, uint16_t dataSize, uint8
 bool MPU6050::writeDMPConfigurationSet(const uint8_t *data, uint16_t dataSize, bool useProgMem) {
     uint8_t *progBuffer = 0;
 	uint8_t success, special;
-    uint16_t i, j;
+    uint16_t i;//, j;
     if (useProgMem) {
-        progBuffer = (uint8_t *)malloc(8); // assume 8-byte blocks, realloc later if necessary
+        progBuffer = (uint8_t *)m_malloc(8); // assume 8-byte blocks, realloc later if necessary
     }
 
     // config set data is a long string of blocks with the following structure:
     // [bank] [offset] [length] [byte[0], byte[1], ..., byte[length]]
-    uint8_t bank, offset, length;
+    uint8_t bank = 0;
+    uint8_t offset = 0;
+    uint8_t length = 0;
     for (i = 0; i < dataSize;) {
         if (useProgMem) {
             /*
@@ -3238,11 +3244,11 @@ bool MPU6050::writeDMPConfigurationSet(const uint8_t *data, uint16_t dataSize, b
         }
         
         if (!success) {
-            if (useProgMem) free(progBuffer);
+            if (useProgMem) m_free(progBuffer);
             return false; // uh oh
         }
     }
-    if (useProgMem) free(progBuffer);
+    if (useProgMem) m_free(progBuffer);
     return true;
 }
 bool MPU6050::writeProgDMPConfigurationSet(const uint8_t *data, uint16_t dataSize) {
