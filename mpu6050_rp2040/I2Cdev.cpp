@@ -151,8 +151,9 @@ int8_t I2Cdev::readWord(uint8_t devAddr, uint8_t regAddr, uint16_t *data, uint32
 int8_t I2Cdev::readBytes(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint8_t *data, uint32_t timeout) {
     uint8_t count = 0;
 
-    i2c_write_blocking(i2c_default, devAddr, &regAddr, 1, true);
-    count = i2c_read_timeout_us(i2c_default, devAddr, data, length, false, timeout * 1000);
+    //i2c_write_blocking(i2c_default, devAddr, &regAddr, 1, true);
+    i2c_write_timeout_us(i2c_default, devAddr, &regAddr, 1, true, timeout);
+    count = i2c_read_timeout_us(i2c_default, devAddr, data, length, false, timeout);
 
     return count;
 }
@@ -169,8 +170,9 @@ int8_t I2Cdev::readWords(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint1
     uint8_t count = 0;
     uint8_t data_buf[length*2];
 
-    i2c_write_blocking(i2c_default, devAddr, &regAddr, 1, true);
-    count = i2c_read_timeout_us(i2c_default, devAddr, data_buf, length*2, false, timeout * 1000);
+    //i2c_write_blocking(i2c_default, devAddr, &regAddr, 1, true);
+    i2c_write_timeout_us(i2c_default, devAddr, &regAddr, 1, true, timeout);
+    count = i2c_read_timeout_us(i2c_default, devAddr, data_buf, length*2, false, timeout);
     for(int i=0; i<length; i++){
         data[i] = (data_buf[i*2] << 8) | data_buf[(i*2)+1];
     }
@@ -299,7 +301,8 @@ bool I2Cdev::writeBytes(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint8_
     for(int i=0; i<length; i++){
         data_buf[i+1] = data[i];
     }
-    status = i2c_write_blocking(i2c_default, devAddr, data_buf, length + 1, false);
+    //status = i2c_write_blocking(i2c_default, devAddr, data_buf, length + 1, false);
+    status = i2c_write_timeout_us(i2c_default, devAddr, data_buf, length + 1, false, I2Cdev::readTimeout);
 
     return status;
 }
@@ -321,7 +324,8 @@ bool I2Cdev::writeWords(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint16
         data_buf[j+1] = data[i];
         j += 2;
     }
-    status = i2c_write_blocking(i2c_default, devAddr, data_buf, new_len, false);
+    //status = i2c_write_blocking(i2c_default, devAddr, data_buf, new_len, false);
+    status = i2c_write_timeout_us(i2c_default, devAddr, data_buf, new_len, false, I2Cdev::readTimeout);
 
     return status;
 }
