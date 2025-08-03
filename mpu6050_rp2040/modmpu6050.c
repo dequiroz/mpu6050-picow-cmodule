@@ -26,6 +26,81 @@ static mp_obj_t imu_init(size_t n_args, const mp_obj_t *args, mp_map_t *kwargs) 
 }
 static MP_DEFINE_CONST_FUN_OBJ_KW(imu_init_obj, 0, imu_init);
 
+static mp_obj_t imu_set_accel_offsets(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    enum { ARG_x, ARG_y, ARG_z };
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_x, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
+        { MP_QSTR_y, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
+        { MP_QSTR_z, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
+    };
+
+    mp_arg_val_t parsed_args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, args, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, parsed_args);
+
+    if (kw_args->used > 0) {
+        if (mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_x), MP_MAP_LOOKUP)) {
+            imu_set_accel_offset_x(parsed_args[ARG_x].u_int);
+        }
+        if (mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_y), MP_MAP_LOOKUP)) {
+            imu_set_accel_offset_y(parsed_args[ARG_y].u_int);
+        }
+        if (mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_z), MP_MAP_LOOKUP)) {
+            imu_set_accel_offset_z(parsed_args[ARG_z].u_int);
+        }
+    } else {
+        mp_raise_ValueError(MP_ERROR_TEXT("At least one argument required: x, y or z"));
+    }
+
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(imu_set_accel_offsets_obj, 0, imu_set_accel_offsets);
+
+static mp_obj_t imu_set_gyro_offsets(size_t n_args, const mp_obj_t *args, mp_map_t *kw_args) {
+    enum { ARG_x, ARG_y, ARG_z };
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_x, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
+        { MP_QSTR_y, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
+        { MP_QSTR_z, MP_ARG_KW_ONLY | MP_ARG_INT, {.u_int = 0} },
+    };
+
+    mp_arg_val_t parsed_args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, args, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, parsed_args);
+
+    if (kw_args->used > 0) {
+        if (mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_x), MP_MAP_LOOKUP)) {
+            imu_set_gyro_offset_x(parsed_args[ARG_x].u_int);
+        }
+        if (mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_y), MP_MAP_LOOKUP)) {
+            imu_set_gyro_offset_y(parsed_args[ARG_y].u_int);
+        }
+        if (mp_map_lookup(kw_args, MP_OBJ_NEW_QSTR(MP_QSTR_z), MP_MAP_LOOKUP)) {
+            imu_set_gyro_offset_z(parsed_args[ARG_z].u_int);
+        }
+    } else {
+        mp_raise_ValueError(MP_ERROR_TEXT("At least one argument required: x, y or z"));
+    }
+
+    return mp_const_none;
+}
+static MP_DEFINE_CONST_FUN_OBJ_KW(imu_set_gyro_offsets_obj, 0, imu_set_gyro_offsets);
+
+
+static mp_obj_t imu_check_and_read_wrapper() {
+    return mp_obj_new_bool(imu_check_and_read());
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(imu_check_and_read_obj, imu_check_and_read_wrapper);
+
+static mp_obj_t imu_get_ypr_wrapper() {
+    float ypr[3];
+    imu_get_ypr(ypr);
+    mp_obj_t tuple[3] = {
+        mp_obj_new_float(ypr[0]),
+        mp_obj_new_float(ypr[1]),
+        mp_obj_new_float(ypr[2]),
+    };
+    return mp_obj_new_tuple(3, tuple);
+}
+static MP_DEFINE_CONST_FUN_OBJ_0(imu_get_ypr_obj, imu_get_ypr_wrapper);
 
 static mp_obj_t imu_get_angles() {
     float yaw, pitch, roll;
@@ -67,7 +142,12 @@ static MP_DEFINE_CONST_FUN_OBJ_0(imu_get_roll_obj, imu_get_roll);
 
 // Register the module
 static const mp_rom_map_elem_t imu_module_globals_table[] = {
+    { MP_ROM_QSTR(MP_QSTR___name__), MP_ROM_QSTR(MP_QSTR_imu) },
     { MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&imu_init_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_gyro_offsets), MP_ROM_PTR(&imu_set_gyro_offsets_obj) },
+    { MP_ROM_QSTR(MP_QSTR_set_accel_offsets), MP_ROM_PTR(&imu_set_accel_offsets_obj) },
+    { MP_ROM_QSTR(MP_QSTR_check_and_read), MP_ROM_PTR(&imu_check_and_read_obj) },
+    { MP_ROM_QSTR(MP_QSTR_get_ypr), MP_ROM_PTR(&imu_get_ypr_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_angles), MP_ROM_PTR(&imu_get_angles_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_yaw), MP_ROM_PTR(&imu_get_yaw_obj) },
     { MP_ROM_QSTR(MP_QSTR_get_pitch), MP_ROM_PTR(&imu_get_pitch_obj) },

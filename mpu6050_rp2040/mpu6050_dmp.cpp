@@ -1,5 +1,5 @@
 #include "mpu6050_dmp.h"
-#include "MPU6050_6Axis_MotionApps_V6_12.h"
+#include "MPU6050_6Axis_MotionApps_V20.h"
 
 extern "C" {
     #include "py/obj.h"
@@ -11,7 +11,9 @@ extern "C" {
 static MPU6050 mpu;
 Quaternion q;
 VectorFloat gravity;
-float ypr[3];
+float current_ypr[3];  // yaw, pitch, roll
+static bool dmpReady = false;
+static uint16_t packetSize = 0;
 uint8_t fifoBuffer[64]; // FIFO storage buffer
 
 bool imu_dmp_init(uint8_t i2c_id, uint sda, uint scl) {
@@ -24,54 +26,84 @@ bool imu_dmp_init(uint8_t i2c_id, uint sda, uint scl) {
     gpio_pull_up(sda);
     gpio_pull_up(scl);
 
-    //sleep_ms(100); // Wait a bit before initializing
-
-    mp_printf(&mp_plat_print, "Initializing MPU\n");
     mpu.initialize();
 
-    // You MUST disable sleep mode
-    //mpu.setSleepEnabled(false);
-    //sleep_ms(100); // Give time to wake up
-
-    mp_printf(&mp_plat_print, "Testing device connections...\n");
-    if (mpu.testConnection()) {
-        mp_printf(&mp_plat_print, "MPU6050 connection successful\n");
-    } else {
+    if (!mpu.testConnection()) {
         mp_printf(&mp_plat_print, "MPU6050 connection failed\n");
         return false;
     }
 
-    //mp_printf(&mp_plat_print, "Calling dmpInitialize\n");
-    //sleep_ms(100); // allow MPU6050 to stabilize
-
-    //uint8_t whoami = mpu.getDeviceID();
-    //mp_printf(&mp_plat_print, "WHOAMI: 0x%x\n", whoami);
-
     uint8_t devStatus = mpu.dmpInitialize();
 
-    //mp_printf(&mp_plat_print, "DMP Initialization (code %d)\n", devStatus);
-
-    if (devStatus == 0) {
-        mp_printf(&mp_plat_print, "MPU DMP Initialized OK\n");
-
-        mpu.setDMPEnabled(true);
-        mp_printf(&mp_plat_print, "DMP Enabled\n");
-
-        return true;
-    } else {
+    if (devStatus != 0) {
         mp_printf(&mp_plat_print, "DMP Initialization failed (code %d)\n", devStatus);
         return false;
     }
+    mpu.setDMPEnabled(true);
+    packetSize = mpu.dmpGetFIFOPacketSize();
+    dmpReady = true;
+    return true;
+}
+
+// Functions to set accelerometer offset parameters
+void imu_set_accel_offset_x(int16_t x) {
+    mpu.setXAccelOffset(x);
+}
+void imu_set_accel_offset_y(int16_t y) {
+    mpu.setYAccelOffset(y);
+}
+
+void imu_set_accel_offset_z(int16_t z) {
+    mpu.setZAccelOffset(z);
+}
+// Functions to set gyroscope offset parameters
+void imu_set_gyro_offset_x(int16_t x) {
+    mpu.setXGyroOffset(x);
+}
+void imu_set_gyro_offset_y(int16_t y) {
+    mpu.setYGyroOffset(y);
+}
+void imu_set_gyro_offset_z(int16_t z) {
+    mpu.setZGyroOffset(z);
+}
+
+bool imu_check_and_read() {
+    if (!dmpReady) return false;
+
+    uint16_t fifoCount = mpu.getFIFOCount();
+    uint8_t mpuIntStatus = mpu.getIntStatus();
+
+    if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
+        mpu.resetFIFO();
+        mp_printf(&mp_plat_print, "FIFO overflow!\n");
+        return false;
+    } else if (mpuIntStatus & 0x02) {
+        while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
+        mpu.getFIFOBytes(fifoBuffer, packetSize);
+
+        mpu.dmpGetQuaternion(&q, fifoBuffer);
+        mpu.dmpGetGravity(&gravity, &q);
+        mpu.dmpGetYawPitchRoll(current_ypr, &q, &gravity);
+
+        return true;
+    }
+    return false;
+}
+
+void imu_get_ypr(float *dest) {
+    dest[0] = current_ypr[0] * 180/M_PI;
+    dest[1] = current_ypr[1] * 180/M_PI;
+    dest[2] = current_ypr[2] * 180/M_PI;
 }
 
 bool imu_dmp_read(float* yaw, float* pitch, float* roll) {
     if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) {
         mpu.dmpGetQuaternion(&q, fifoBuffer);
         mpu.dmpGetGravity(&gravity, &q);
-        mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-        *yaw = ypr[0] * 180/M_PI;
-        *pitch = ypr[1] * 180/M_PI;
-        *roll = ypr[2] * 180/M_PI;
+        mpu.dmpGetYawPitchRoll(current_ypr, &q, &gravity);
+        *yaw = current_ypr[0] * 180/M_PI;
+        *pitch = current_ypr[1] * 180/M_PI;
+        *roll = current_ypr[2] * 180/M_PI;
         return true;
     }
     return false;
